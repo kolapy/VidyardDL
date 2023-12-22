@@ -1,0 +1,9 @@
+#Git Ignore
+
+#folders
+_pycache_/
+Other/
+venv/
+
+#files
+secrets_API.py

@@ -1,7 +1,7 @@
 #Git Ignore
 
 #folders
-_pycache_/
+__pycache__/
 Other/
 venv/
 

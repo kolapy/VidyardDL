@@ -4,17 +4,104 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Vidyard Download Links</title>
+    <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+
 </head>
 <body>
+
+
+    
     <h1>Vidyard Download Links</h1>
-    <form method="post" action="/">
-        <label for="vidyard_url">Enter Vidyard URL:</label>
-        <input type="text" id="vidyard_url" name="vidyard_url">
+    <div id="vidyardForm">
+        <form method="POST" action="/" name="vidyardForm">
+            
+            <label for="vidyard_url">Vidyard URL:</label>
+            <input type="text" id="vidyard_url" name="vidyard_url">
+            <span> Or </span>
+            <label for="uuid_input">UUID (Optional):</label>
+            <input type="text" id="uuid_input" name="uuid_input">
+            <br>
+            <input type="submit" name="vidyardForm" value="Submit">
+        </form>
+    </div>
 
-        <label for="uuid_input">Vidyard UUID:</label>
-        <input type="text" name="uuid_input" id="uuid_input" placeholder="Optional">
+    <h1>YouTube Download</h1>
+    <div id="youtubeForm">
+        <form method="POST" action="/" name="youtubeForm">
+            
+            <label for="youtube_url">YouTube URL:</label>
+            <input type="text" id="youtube_url" name="youtube_url">
+            <br>
+            <input type="submit" name="youtubeForm" value="Submit" onclick="startProgressCheck()">
+        </form>
+    </div>
+    <div id="progress-container" style="display: none;">
+        <p id="progress-info">Download Progress: </p>
+    </div>
 
-        <button type="submit">Get Download Links</button>
-    </form>
+
+    <script>
+        var progressInterval = null;  // Variable to store the interval ID
+        console.log("Initial Progress: ", progressInterval);
+        console.log('Initial Download Progress:', data.progress);
+
+        function updateProgress(progress) {
+            document.getElementById('progress-info').innerText = 'Download Progress: ' + progress + '%';
+            console.log("Progress variable: ", progress)
+
+        }
+
+        function startProgressCheck() {
+            // Check if an interval is already running
+            if (!progressInterval) {
+                // Start checking for progress every 1000 milliseconds (1 second)
+                $('#progress-container').show();
+                progressInterval = setInterval(checkProgress, 1000);
+                console.log("ProgressInterval started: ", progressInterval);
+            }
+        }
+
+        function stopProgressCheck() {
+            // Stop checking for progress
+            clearInterval(progressInterval);
+            console.log("STOP PROGRESS CHECK: ", progressInterval);
+            progressInterval = null;  // Reset the interval variable
+            console.log("STOP PROGRESS CHECK (Null): ", progressInterval);
+            
+        }
+        
+        function checkProgress() {
+            $.ajax({
+                url: '/tydl',
+                type: 'GET',
+                success: function(data) {
+                    console.log('Download Progress:', data.progress);
+                    
+                    // Add logic to update your webpage with the progress value
+                    updateProgress(data.progress);
+
+                    // Check if the download is completed (progress is 100)
+                    if (data.progress === 100) {
+                        // Stop checking for progress once the download is complete
+                        stopProgressCheck();
+                        // Reset progress immediately
+                        $.get('/reset_progress');
+                        console.log('Data progress has = 100:', data.progress);
+                    } else {
+                        // Continue checking for progress if not complete
+                        // Wait for the next interval
+                        startProgressCheck();
+                    }
+                },
+                error: function(error) {
+                    console.error('Error fetching progress:', error);
+                    // Stop checking for progress on error
+                    stopProgressCheck();
+                }
+            });
+        }
+
+         
+    </script>
 </body>
 </html>

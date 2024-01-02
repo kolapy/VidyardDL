@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Download</title>
+</head>
+<body>
+    <div id="progress-container">
+        <p id="progress-info">Download Progress: </p>
+    </div>
+
+    <script>
+        function updateProgress(progress) {
+            $('#progress-info').text('Download Progress: ' + progress);
+        }
+
+        // Your existing JavaScript code
+
+        // AJAX example (you need to adapt this to your needs)
+        $.ajax({
+            url: '/ytdl',  // Update this with your Flask endpoint
+            type: 'GET',        // Change the request type as needed
+            success: function(data) {
+                updateProgress(data.progress);
+            }
+        });
+        // Periodically check for progress updates (you can adjust the interval)
+        setInterval(checkProgress, 1000);  // Check every 1000 milliseconds (1 second)
+    </script>
+
+    <a href="/">Go back</a>
+</body>
+</html>

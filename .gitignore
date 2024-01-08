@@ -7,3 +7,6 @@ venv/
 
 #files
 secrets_API.py
+
+*.log.*
+*.log

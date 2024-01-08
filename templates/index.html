@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vidyard Download Links</title>
+    <title>OT Video Downloader</title>
     <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/3.0.3/socket.io.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
 
 </head>
 <body>
-
-
-    
     <h1>Vidyard Download Links</h1>
     <div id="vidyardForm">
         <form method="POST" action="/" name="vidyardForm">
@@ -31,6 +31,9 @@
             
             <label for="youtube_url">YouTube URL:</label>
             <input type="text" id="youtube_url" name="youtube_url">
+            <span>Or </span>
+            <label for="youtube_list">YouTube List (Optional):</label>
+            <textarea id="youtube_list" name="youtube_list" rows="1" cols="20"></textarea>
             <br>
             <input type="submit" name="youtubeForm" value="Submit" onclick="startProgressCheck()">
         </form>
@@ -41,13 +44,34 @@
 
 
     <script>
+
+        var socket = io.connect(location.protocol + '//' + document.domain + ':' + location.port);
+
+        socket.on('connect', function() {
+            console.log('Socket.IO connected');
+                // Event binding after successful connection
+                socket.on('download_complete_ack', function(data) {
+                    console.log('Received download complete acknowledgement:', data.message);
+
+                    stopProgressCheck();
+
+                    $('#progress-container').fadeOut(4000, function(){
+                        //reset the text to default
+                        $('#progress-info').text('Download Progress: ');
+                        // Clear the input field value
+                        $('#youtube_url').val('');
+                        $('#youtube_list').val('');
+                    });
+                });
+        });
+
         var progressInterval = null;  // Variable to store the interval ID
         console.log("Initial Progress: ", progressInterval);
-        console.log('Initial Download Progress:', data.progress);
+        //console.log('Initial Download Progress:', data.progress); //DATA does not exist yet.
 
         function updateProgress(progress) {
             document.getElementById('progress-info').innerText = 'Download Progress: ' + progress + '%';
-            console.log("Progress variable: ", progress)
+            console.log("Progress variable Update: ", progress)
 
         }
 
@@ -57,7 +81,7 @@
                 // Start checking for progress every 1000 milliseconds (1 second)
                 $('#progress-container').show();
                 progressInterval = setInterval(checkProgress, 1000);
-                console.log("ProgressInterval started: ", progressInterval);
+                console.log("ProgressInterval started");
             }
         }
 
@@ -67,7 +91,15 @@
             console.log("STOP PROGRESS CHECK: ", progressInterval);
             progressInterval = null;  // Reset the interval variable
             console.log("STOP PROGRESS CHECK (Null): ", progressInterval);
-            
+            progress = 0;
+            console.log("STOP PROGRESS, reset progress variable: ", progress);
+            resetProgress()
+        }
+        // Function to reset progress on the server
+        function resetProgress() {
+            $.get('/reset_progress', function(response) {
+                console.log('Progress reset successfully on the server.');
+            });
         }
         
         function checkProgress() {
@@ -75,7 +107,7 @@
                 url: '/tydl',
                 type: 'GET',
                 success: function(data) {
-                    console.log('Download Progress:', data.progress);
+                    console.log('Download Progress (CHECK PROGRESS):', data.progress);
                     
                     // Add logic to update your webpage with the progress value
                     updateProgress(data.progress);
@@ -83,13 +115,25 @@
                     // Check if the download is completed (progress is 100)
                     if (data.progress === 100) {
                         // Stop checking for progress once the download is complete
+                        console.log('Progress == 100, Stopping progress check.');
                         stopProgressCheck();
                         // Reset progress immediately
                         $.get('/reset_progress');
-                        console.log('Data progress has = 100:', data.progress);
+                        // Set the progress container text to "Done"
+                        $('#progress-info').text('Done');
+                        // Fade out the progress container over 4 seconds
+                        $('#progress-container').fadeOut(4000, function(){
+                            //reset the text to defualt
+                            $('#progress-info').text('Download Progress: ');
+                            // Clear the input field value
+                            $('#youtube_url').val('');
+                            $('#youtube_list').val('');
+                            //startProgressCheck();
+                        });
                     } else {
                         // Continue checking for progress if not complete
                         // Wait for the next interval
+                        console.log('Progress /= 100, starting progress check', data.progress);
                         startProgressCheck();
                     }
                 },
@@ -99,7 +143,17 @@
                     stopProgressCheck();
                 }
             });
-        }
+        } 
+        //RESET forms after page reload
+        document.addEventListener('DOMContentLoaded', function() {
+        // Reset the Vidyard form inputs
+        document.getElementById('vidyard_url').value = '';
+        document.getElementById('uuid_input').value = '';
+
+        // Reset the YouTube form inputs
+        document.getElementById('youtube_url').value = '';
+        document.getElementById('youtube_list').value = '';
+    });
 
          
     </script>

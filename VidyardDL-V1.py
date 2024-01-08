@@ -1,7 +1,7 @@
 from __future__ import unicode_literals
 import requests
 import re
-from flask import Flask, render_template, request, jsonify, send_file, send_from_directory, session
+from flask import Flask, render_template, request, jsonify, send_file, send_from_directory
 from secrets_API import API_KEY
 #import youtube_dl #OLD BROKEN
 import yt_dlp
@@ -12,13 +12,10 @@ import zipfile
 from flask_socketio import SocketIO
 import logging
 from logging.handlers import TimedRotatingFileHandler
-import uuid
-import secrets
 
 
 app = Flask(__name__)
 socketio = SocketIO(app)
-app.secret_key = secrets.token_hex(16)
 
 
 #----------------------GLOBAL SET UP ----------------------------------------------------------------------
@@ -26,7 +23,7 @@ app.secret_key = secrets.token_hex(16)
 global_progress = 0
 
 #Global variable to track the amount of ongoign downloads.
-#ongoing_downloads = 0
+ongoing_downloads = 0
 
 # Get the user's home directory
 home_directory = os.path.expanduser("~")
@@ -64,15 +61,6 @@ def favicon():
 #----------------------GLOBAL SET UP ----------------------------------------------------------------------
 
 #------------------------------Functions------------------------------------------------------------------
-
-#Generate User ID for sessions
-def generate_user_id():
-    user_id_key = 'user_id'
-    if user_id_key not in session:
-        session[user_id_key] = str(uuid.uuid4())
-    return session[user_id_key]
-    
-
 # Function to clean up files
 def clean_up_files(path):
     directory = path
@@ -123,13 +111,11 @@ def get_download_links(uuid):
 #-----------------------------------Vidyard Functions------------------------- 
 #YoutubeDL Progress extraction
 def progress_hook(d):
-    #global global_progress
-    user_progress = f"user_progress_{session['user_id']}"
+    global global_progress
 
     if d['status'] == 'finished':
         print('Download completed.')
-        #global_progress = 100  # Set progress to 100 when finished
-        session[user_progress] = 100
+        global_progress = 100  # Set progress to 100 when finished
 
     elif d['status'] == 'downloading':
         # Extract numeric progress value from '_percent_str' using regex
@@ -139,8 +125,7 @@ def progress_hook(d):
             try:
                 progress = float(progress_str)
                 print(f'Downloading: {progress}% ETA: {d["_eta_str"]}')
-                session[user_progress] = int(float(d['_percent_str'][:-1]))
-                #global_progress = progress
+                global_progress = progress
             except ValueError:
                 print('Failed to convert progress value to float.')
         else:
@@ -187,11 +172,8 @@ def send_multiple_files(file_paths):
 #set up webhook
 @socketio.on('download_complete')
 def handle_download_complete():
-    #global ongoing_downloads
+    global ongoing_downloads
     #ongoing_downloads -= 1
-    user_progress = f"user_progress_{session['user_id']}"
-    session.pop(user_progress, None)  # Remove the progress key from session
-    ongoing_downloads = session.get('ongoing_downloads', 0)
     print ("Ongoing downloads: ", ongoing_downloads)
 
     if ongoing_downloads == 0:
@@ -202,12 +184,6 @@ def handle_download_complete():
 #Index logic
 @app.route('/', methods=['GET', 'POST'])
 def home():
-    user_id_key = 'user_id'
-    user_progress = f"user_progress_{session[user_id_key]}"
-
-    if user_id_key in session:
-        session.pop(user_id_key, None)  # Reset progress if it exists
-
     # Access client IP address
     client_ip = request.remote_addr
     if request.method == 'POST':
@@ -226,10 +202,8 @@ def home():
                 #store the downlaods
                 file_paths = []
 
-                #global ongoing_downloads
-                #ongoing_downloads = len(youtube_urls)
-                session['ongoing_downloads'] = len(youtube_urls)
-                session['user_id'] = generate_user_id()
+                global ongoing_downloads
+                ongoing_downloads = len(youtube_urls)
 
                 for url in youtube_urls:
                     success, file_path, error_message = download_yt(url, download_path, client_ip)
@@ -237,8 +211,7 @@ def home():
                         print(f"YouTube download successful: {file_path}")
                         file_paths.append(file_path)
 
-                        #ongoing_downloads -= 1
-                        session['ongoing_downloads'] -= 1
+                        ongoing_downloads -= 1
                         #Call the websocket, will only go through when ongoingdownlaods == 0
                         handle_download_complete()
                     else:
@@ -264,8 +237,8 @@ def home():
                     print("YouTube download successful")
                     print(f"THE FILE PATH IS: {file_path}")
                     
-                    session['ongoing_downloads'] = 0
-                    #ongoing_downloads = 0 #Set to 0 as we are downloading a single video.
+                    
+                    ongoing_downloads = 0 #Set to 0 as we are downloading a single video.
                     #Call this just in case to prevent GET spam in some edge cases.
                     handle_download_complete()
                     return send_file(file_path, as_attachment=True)
@@ -313,11 +286,8 @@ def download_progress():
 #Route to reset progress
 @app.route('/reset_progress', methods=['GET'])
 def reset_progress():
-    
-    #global global_progress
-    #global_progress = 0
-    session[user_progress] = 0
-    
+    global global_progress
+    global_progress = 0
     print(f"GLOBAL progress RESET': {global_progress}")
     return jsonify({'message': 'Progress reset successfully'})
 
